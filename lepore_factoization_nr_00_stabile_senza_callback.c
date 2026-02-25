@@ -526,8 +526,8 @@ int main(void) {
   mpz_inits(A, B, C, N2, S, H, K, M, temp,temp2,temp3,p,P,a,M2,a2, NULL);
   int count =0;
   int i = 0;
-  mpz_set_str(a, "15", 10);
-    mpz_set_str(M, "1891", 10);
+  mpz_set_str(a, "3", 10);
+    mpz_set_str(M, "187", 10);
     gmp_printf("RSA= %Zd\n", M);
 
     while(1){
@@ -600,3 +600,4 @@ const int MAX_SOL = 10000;
     mpz_clears(A, B, C, N2, S, H, K, NULL);
     return 0;
 }
+
