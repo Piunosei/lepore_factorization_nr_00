@@ -5,15 +5,15 @@ I have devised a factorization algorithm that:
 
 Given M, a number to be factored,
 
-From M, it generates an N of the order of magnitude of M^2.
+From M, generates an N of the order of magnitude of M^2.
 
-It starts the complete factorization of N using trial division, ECM, and Pollard–Rho.
+Starts the complete factorization of N using trial division, H_special, ECM, and Pollard–Rho.
 
 Each time it finds a new factor, it updates the current factorization.
 
-For each updated factor, it checks whether a given value S is valid.
+At each TIMEOUT expiration, it checks whether a given value S is valid.
 
-If S is valid, it is sent in real time to the main program via a callback.
+If S is valid, it is sent to the main program via.
 
 The main program checks whether S produces a factorization of M; otherwise, it generates another N and restarts.
 
