@@ -7,7 +7,7 @@ Given M, a number to be factored,
 
 From M, generates an N of the order of magnitude of M^2.
 
-Starts the complete factorization of N using trial division, H_special, ECM, and Pollard–Rho.
+Starts the complete factorization of N=(F+1)*(F-1)/2 using trial division, H_special, ECM, and Pollard–Rho.
 
 Each time it finds a new factor, it updates the current factorization.
 
