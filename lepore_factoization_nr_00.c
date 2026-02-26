@@ -26,11 +26,7 @@ unsigned long v2(const mpz_t x) {
 
 void add_factor(factor_t *factors, int *nf, int max_factors,
                 const mpz_t p, unsigned long e) {
-
-  if (mpz_cmp_ui(p, 1) == 0) return;
-
-  
-  for (int i = 0; i < *nf; i++) {
+    for (int i = 0; i < *nf; i++) {
         if (mpz_cmp(factors[i].p, p) == 0) {
             factors[i].e += e;
             return;
@@ -317,20 +313,27 @@ int factor_H_special(mpz_t n, factor_t *factors, int *nf, int max_factors) {
     mpz_t H2, mod, pow2, X, z, q;
     mpz_inits(H2, mod, pow2, X, z, q, NULL);
 
+    /* H2 = n^2 */
     mpz_mul(H2, n, n);
+
+    /* mod = 2 * H^2 */
     mpz_mul_ui(mod, H2, 2);
 
+    /* pow2 = 2^(H^2) mod (2*H^2) */
     mpz_set_ui(pow2, 2);
     mpz_powm(pow2, pow2, H2, mod);
 
+    /* X = (pow2 - 2) mod (2*H^2) */
     mpz_sub_ui(X, pow2, 2);
     mpz_mod(X, X, mod);
 
+    /* z = gcd(X, n) */
     mpz_gcd(z, X, n);
 
     int found = 0;
 
     if (mpz_cmp_ui(z, 1) != 0 && mpz_cmp(z, n) != 0) {
+        /* fattore non banale trovato */
         mpz_divexact(q, n, z);
 
         add_factor(factors, nf, max_factors, z, 1);
@@ -342,7 +345,6 @@ int factor_H_special(mpz_t n, factor_t *factors, int *nf, int max_factors) {
     mpz_clears(H2, mod, pow2, X, z, q, NULL);
     return found;
 }
-
 
 
 
@@ -359,12 +361,7 @@ void factor_recursive(mpz_t n, factor_t *factors, int *nf, int max_factors,
 
     trial_division(n, factors, nf, max_factors);
 
-if (mpz_cmp_ui(n, 1) == 0) return;
-
-/*  NUOVO METODO DI FATTORIZZAZIONE */
-if (factor_H_special(n, factors, nf, max_factors)) {
-    return; /* fattorizzato con successo */
-}
+    if (mpz_cmp_ui(n, 1) == 0) return;
 
     if (is_probable_prime(n, 40)) {
         add_factor(factors, nf, max_factors, n, 1);
@@ -508,6 +505,7 @@ void search_divisors(
 }
 /* ---------- wrapper principale ---------- */
 
+
 int find_all_S(
     solution_t *sol,
     int max_solutions,
@@ -533,19 +531,74 @@ int find_all_S(
     time_t start_time = time(NULL);
     int timeout_flag = 0;
 
-    /* Fattorizzazione (ECM + Pollard + trial division) con timeout */
-    factor_recursive(N, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+    /* --- uso della fattorizzazione nota N = (F^2 - 1)/2 = ((F+1)/2)*((F-1)/2) --- */
+    mpz_t F, f1, f2;
+    mpz_inits(F, f1, f2, NULL);
 
-    /* Se è scattato il timeout, usiamo comunque i fattori parziali */
-    if (timeout_flag) {
-        gmp_printf("[TIMEOUT] Uso fattori parziali: %d fattori trovati.\n", nf);
+    /* F = C/2 (perché nel main hai C = 2*F) */
+    mpz_fdiv_q_2exp(F, C, 1);      // F = C / 2
+
+    /* f1 = (F + 1) / 2 */
+    mpz_add_ui(f1, F, 1);
+    mpz_fdiv_q_2exp(f1, f1, 1);
+
+    /* f2 = (F - 1) / 2 */
+    mpz_sub_ui(f2, F, 1);
+    mpz_fdiv_q_2exp(f2, f2, 1);
+
+    /* --- trial division + H_special + ricorsione su f1 --- */
+    if (!timeout_flag) {
+
+        trial_division(f1, factors, &nf, MAX_FACTORS);
+
+        if (mpz_cmp_ui(f1, 1) != 0) {
+
+            if (factor_H_special(f1, factors, &nf, MAX_FACTORS)) {
+
+                mpz_t z1, q1;
+                mpz_inits(z1, q1, NULL);
+
+                mpz_set(z1, factors[nf - 2].p);
+                mpz_set(q1, factors[nf - 1].p);
+
+                factor_recursive(z1, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+                factor_recursive(q1, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+
+                mpz_clears(z1, q1, NULL);
+
+            } else {
+                factor_recursive(f1, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+            }
+        }
     }
 
-    /* Se N non è stato ridotto a 1, il residuo è un "pseudo-primo" da aggiungere */
-    if (mpz_cmp_ui(N, 1) != 0) {
-        gmp_printf("[TIMEOUT] Residuo non fattorizzato: %Zd\n", N);
-        add_factor(factors, &nf, MAX_FACTORS, N, 1);
+    /* --- trial division + H_special + ricorsione su f2 --- */
+    if (!timeout_flag) {
+
+        trial_division(f2, factors, &nf, MAX_FACTORS);
+
+        if (mpz_cmp_ui(f2, 1) != 0) {
+
+            if (factor_H_special(f2, factors, &nf, MAX_FACTORS)) {
+
+                mpz_t z2, q2;
+                mpz_inits(z2, q2, NULL);
+
+                mpz_set(z2, factors[nf - 2].p);
+                mpz_set(q2, factors[nf - 1].p);
+
+                factor_recursive(z2, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+                factor_recursive(q2, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+
+                mpz_clears(z2, q2, NULL);
+
+            } else {
+                factor_recursive(f2, factors, &nf, MAX_FACTORS, start_time, &timeout_flag);
+            }
+        }
     }
+
+    mpz_clears(F, f1, f2, NULL);
 
     /* Preparazione parametri per la ricerca dei divisori H di N2 */
     mpz_t H0, C2, BmodA;
@@ -576,8 +629,6 @@ int find_all_S(
 
     mpz_clears(N, tmp, H0, C2, BmodA, NULL);
 
-    /* Anche se timeout_flag è 1, abbiamo comunque usato i fattori parziali.
-       Quindi NON usciamo con 0 forzato: restituiamo sol_count. */
     return sol_count;
 }
 /* ---------- main ---------- */
@@ -589,7 +640,7 @@ int main(void) {
   int count =0;
   int i = 0;
   mpz_set_str(a, "3", 10);
-    mpz_set_str(M, "412023436986659543855531365332575948179811699844327982845455626433876445565248426198098870423161841879261420247188869492560931776375033421130982397485150944909106910269861031862704114880866970564902903653658867433731720813104105190864254793282601391257624033946373269391", 10);
+    mpz_set_str(M, "390644893234047643", 10);
     gmp_printf("RSA= %Zd\n", M);
 
     while(1){
@@ -662,4 +713,3 @@ const int MAX_SOL = 10000;
     mpz_clears(A, B, C, N2, S, H, K, NULL);
     return 0;
 }
-
